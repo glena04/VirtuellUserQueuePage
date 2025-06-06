@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Queue System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f8f9fa;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .phone-container {
+            width: 320px;
+            height: 640px;
+            background: #000;
+            border-radius: 30px;
+            padding: 8px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: #f8f9fa;
+            border-radius: 22px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .status-bar {
+            height: 44px;
+            background: #4f46e5;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .app-content {
+            height: calc(100% - 44px);
+            padding: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .screen.active {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .screen.exit-left {
+            transform: translateX(-100%);
+        }
+
+        .header {
+            background: #4f46e5;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 8px 0;
+        }
+
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-label {
+            font-weight: 500;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .info-value {
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 14px;
+        }
+
+        .ticket-number {
+            font-family: 'Courier New', monospace;
+            background: #f1f5f9;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .status-badge {
+            background: #dcfce7;
+            color: #16a34a;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.physical {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .status-badge.virtual {
+            background: #f3e8ff;
+            color: #7c3aed;
+        }
+
+        .position-highlight {
+            font-size: 24px;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+
+        .wait-time-highlight {
+            font-size: 18px;
+            font-weight: 600;
+            color: #059669;
+        }
+
+        .button {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .button.success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+
+
+        .location-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        .location-card .card-title {
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .location-details {
+            opacity: 0.9;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .progress-section {
+            margin-top: 15px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+            border-radius: 3px;
+            transition: width 1s ease;
+        }
+
+        .notification {
+            background: #dcfce7;
+            border: 1px solid #bbf7d0;
+            color: #15803d;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .status-toggle {
+            display: flex;
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 4px;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .status-option {
+            flex: 1;
+            padding: 8px 12px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .status-option.active {
+            background: white;
+            color: #3b82f6;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .status-option.inactive {
+            color: #64748b;
+        }
+
+        .switch-message {
+            background: #fef3c7;
+            border: 1px solid #fde68a;
+            color: #92400e;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 13px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+
+        .switch-message.show {
+            display: block;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        .immediate-queue-message {
+            background: #dcfce7;
+            border: 1px solid #bbf7d0;
+            color: #15803d;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 13px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+
+        .immediate-queue-message.show {
+            display: block;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-container">
+        <div class="phone-screen">
+            <div class="status-bar">
+                <span>9:41</span>
+                <span>●●●●● ⚡ 100%</span>
+            </div>
+            
+            <div class="app-content">
+                <!-- Screen 1: Service Selection -->
+                <div class="screen active" id="screen1">
+                    <div class="header">
+                        <h1>Virtual Queue System</h1>
+                        <p>Medical Center Downtown</p>
+                    </div>
+                    <div class="content">
+                        <div class="card location-card">
+                            <div class="card-title">📍 Current Location</div>
+                            <div class="location-details">
+                                Medical Center<br>
+                                123 Health Street, Downtown<br>
+                                Available Services: General, Emergency
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-title">Get a Ticket</div>
+                            <div class="info-row">
+                                <span class="info-label">Service:</span>
+                                <span class="info-value">General Consultation</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Type:</span>
+                                <span class="status-badge virtual">Virtual</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Current Queue:</span>
+                                <span class="info-value">10 people ahead</span>
+                            </div>
+                            <button class="button" onclick="getTicket()">Get Ticket</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Screen 2: Ticket Received -->
+                <div class="screen" id="screen2">
+                    <div class="header">
+                        <h1>Ticket Received</h1>
+                        <p>You're in the queue</p>
+                    </div>
+                    <div class="content">
+                        <div class="notification">
+                            ✅ Ticket successfully generated! You can leave and return when it's time.
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-title">Get a Ticket</div>
+                            <div class="info-row">
+                                <span class="info-label">Ticket Number:</span>
+                                <span class="ticket-number">MED45062025</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Service:</span>
+                                <span class="info-value">General</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Status:</span>
+                                <span class="status-badge virtual">Virtual</span>
+                            </div>
+
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">Your Queue Status</div>
+                            <div class="info-row">
+                                <span class="info-label">Position:</span>
+                                <span class="position-highlight">45</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">People Ahead:</span>
+                                <span class="info-value">10</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Estimated Wait:</span>
+                                <span class="wait-time-highlight"><span id="waitTime">45</span> minutes</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Currently Called:</span>
+                                <span class="info-value">35</span>
+                            </div>
+                            
+                            <button class="button" onclick="checkIn()">I Am Here - Join Queue Now</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Screen 3: Checked In -->
+                <div class="screen" id="screen3">
+                    <div class="header">
+                        <h1>In Active Queue</h1>
+                        <p>Live queue monitoring</p>
+                    </div>
+                    <div class="content">
+                        <div class="notification" id="mainNotification">
+                            ✅ You have a ticket and are holding your virtual place in line.
+                        </div>
+
+                        <div class="immediate-queue-message" id="immediateQueueMessage">
+                            🚀 You've joined the active queue! You'll be served in your correct order.
+                        </div>
+
+                        <div class="switch-message" id="switchMessage">
+                            📱 You're holding your place virtually. Switch to "I Am Here" when you're ready to be served.
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-title">Your Queue Status</div>
+                            <div class="info-row">
+                                <span class="info-label">Position:</span>
+                                <span class="position-highlight">45</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">People Ahead:</span>
+                                <span class="info-value"><span id="peopleAhead">12 total waiting</span></span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Estimated Wait:</span>
+                                <span class="wait-time-highlight" id="estimatedWait">Return when ready</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Currently Called:</span>
+                                <span class="info-value"><span id="currentServing">35</span></span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Status:</span>
+                                <span class="status-badge virtual" id="currentStatusBadge">Virtual (Not Active)</span>
+                            </div>
+                            
+                            <div class="progress-section">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span style="font-size: 12px; color: #64748b;">Progress</span>
+                                    <span style="font-size: 12px; color: #64748b;"><span id="progressPercent">10</span>%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="progressBar" style="width: 10%"></div>
+                                </div>
+                            </div>
+
+
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">Change Waiting Style</div>
+                            <div style="font-size: 13px; color: #64748b; margin-bottom: 10px; text-align: center;">
+                                Choose when you want to be actively called for service
+                            </div>
+                            
+                            <div class="status-toggle">
+                                <div class="status-option inactive" id="physicalOption" onclick="switchToPhysical()">
+                                    🏥 I Am Here
+                                </div>
+                                <div class="status-option active" id="virtualOption" onclick="switchToVirtual()">
+                                    📱 Hold My Place
+                                </div>
+                            </div>
+                            
+                            <div style="font-size: 12px; color: #64748b; text-align: center;" id="statusDescription">
+                                You're holding your place. Switch to Physical when ready to be served.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Screen 4: Your Turn -->
+                <div class="screen" id="screen4">
+                    <div class="header">
+                        <h1>Your Turn!</h1>
+                        <p>Please proceed inside</p>
+                    </div>
+                    <div class="content">
+                        <div class="notification" style="background: #fef3c7; border-color: #fde68a; color: #92400e;">
+                            🎉 Now serving #45 - Please proceed to the reception desk!
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-title">Your Queue Status</div>
+                            <div class="info-row">
+                                <span class="info-label">Position:</span>
+                                <span class="position-highlight" style="color: #059669;">Current</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">People Ahead:</span>
+                                <span class="info-value">0</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Status:</span>
+                                <span class="status-badge">Ready to Serve</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Currently Called:</span>
+                                <span class="info-value">45 (You)</span>
+                            </div>
+                            
+                            <button class="button success" onclick="resetDemo()">Enter Building</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentScreen = 1;
+        let currentServing = 35;
+        let queueInterval;
+        let currentStatus = 'virtual';
+        let userTicketNumber = 45;
+        let totalInQueue = 15;
+        let physicalQueue = [];
+
+        function showScreen(screenNumber) {
+            clearInterval(queueInterval);
+            
+            const current = document.getElementById(`screen${currentScreen}`);
+            current.classList.remove('active');
+            current.classList.add('exit-left');
+            
+            setTimeout(() => {
+                current.classList.remove('exit-left');
+                current.style.transform = 'translateX(100%)';
+                
+                const newScreen = document.getElementById(`screen${screenNumber}`);
+                newScreen.classList.add('active');
+                currentScreen = screenNumber;
+                
+                if (screenNumber === 3) {
+                    initializeQueue();
+                    startQueueUpdates();
+                    updateStatusDisplay();
+                    updateQueueDisplay();
+                }
+                
+                setTimeout(() => {
+                    current.style.transform = '';
+                }, 50);
+            }, 200);
+        }
+
+        function initializeQueue() {
+            physicalQueue = [36, 37, 38, 40, 41, 43]; 
+            currentStatus = 'virtual';
+            updateQueueDisplay();
+        }
+
+        function getTicket() {
+            showScreen(2);
+            
+            let waitTime = 45;
+            const waitTimeEl = document.getElementById('waitTime');
+            const interval = setInterval(() => {
+                waitTime--;
+                if (waitTimeEl) waitTimeEl.textContent = waitTime;
+                if (waitTime <= 40) {
+                    clearInterval(interval);
+                }
+            }, 300);
+        }
+
+        function checkIn() {
+            currentStatus = 'physical';
+            addUserToPhysicalQueue();
+            showScreen(3);
+            
+            setTimeout(() => {
+                showImmediateQueueMessage();
+                updateStatusDisplay();
+                updateQueueDisplay();
+            }, 500);
+        }
+
+        function switchToVirtual() {
+            if (currentStatus !== 'virtual') {
+                currentStatus = 'virtual';
+                physicalQueue = physicalQueue.filter(num => num !== userTicketNumber);
+                updateStatusDisplay();
+                updateQueueDisplay();
+                showSwitchMessage();
+            }
+        }
+
+        function switchToPhysical() {
+            if (currentStatus !== 'physical') {
+                currentStatus = 'physical';
+                addUserToPhysicalQueue();
+                updateStatusDisplay();
+                updateQueueDisplay();
+                showImmediateQueueMessage();
+                showSwitchMessage();
+            }
+        }
+
+        function addUserToPhysicalQueue() {
+            physicalQueue = physicalQueue.filter(num => num !== userTicketNumber);
+            
+            let insertIndex = 0;
+            for (let i = 0; i < physicalQueue.length; i++) {
+                if (physicalQueue[i] < userTicketNumber) {
+                    insertIndex = i + 1;
+                } else {
+                    break;
+                }
+            }
+            
+            physicalQueue.splice(insertIndex, 0, userTicketNumber);
+        }
+
+        function updateStatusDisplay() {
+            const statusBadge = document.getElementById('currentStatusBadge');
+            const virtualOption = document.getElementById('virtualOption');
+            const physicalOption = document.getElementById('physicalOption');
+            const statusDescription = document.getElementById('statusDescription');
+            
+            if (currentStatus === 'virtual') {
+                if (statusBadge) {
+                    statusBadge.textContent = 'Virtual (Not Active)';
+                    statusBadge.className = 'status-badge virtual';
+                }
+                if (virtualOption && physicalOption) {
+                    virtualOption.classList.add('active');
+                    virtualOption.classList.remove('inactive');
+                    physicalOption.classList.remove('active');
+                    physicalOption.classList.add('inactive');
+                }
+                if (statusDescription) {
+                    statusDescription.textContent = "You're holding your place. Click 'I Am Here' when ready to be served.";
+                }
+            } else {
+                if (statusBadge) {
+                    statusBadge.textContent = 'Physical (Active)';
+                    statusBadge.className = 'status-badge physical';
+                }
+                if (virtualOption && physicalOption) {
+                    physicalOption.classList.add('active');
+                    physicalOption.classList.remove('inactive');
+                    virtualOption.classList.remove('active');
+                    virtualOption.classList.add('inactive');
+                }
+                if (statusDescription) {
+                    statusDescription.textContent = "You're in the active queue and will be called when it's your turn.";
+                }
+            }
+            
+            const notification = document.getElementById('mainNotification');
+            if (notification) {
+                if (currentStatus === 'virtual') {
+                    notification.innerHTML = '✅ You have a ticket and are holding your virtual place in line.';
+                } else {
+                    notification.innerHTML = '✅ You\'re now in the active queue and will be called when it\'s your turn!';
+                }
+            }
+        }
+
+        function updateQueueDisplay() {
+            const peopleAheadEl = document.getElementById('peopleAhead');
+            const progressBar = document.getElementById('progressBar');
+            const progressPercent = document.getElementById('progressPercent');
+            const estimatedWaitEl = document.getElementById('estimatedWait');
+            
+            if (currentStatus === 'virtual') {
+                const totalWaiting = Math.max(0, totalInQueue - (currentServing - 34));
+                if (peopleAheadEl) peopleAheadEl.textContent = `${totalWaiting} total waiting`;
+                if (estimatedWaitEl) estimatedWaitEl.textContent = "Return when ready";
+                if (progressBar) progressBar.style.width = '0%';
+                if (progressPercent) progressPercent.textContent = '0';
+            } else {
+                const userPosition = physicalQueue.indexOf(userTicketNumber);
+                
+                if (userPosition === -1) {
+                    if (peopleAheadEl) peopleAheadEl.textContent = "Joining queue...";
+                    if (estimatedWaitEl) estimatedWaitEl.textContent = "Calculating...";
+                    if (progressBar) progressBar.style.width = '5%';
+                    if (progressPercent) progressPercent.textContent = '5';
+                } else {
+                    const peopleAhead = userPosition;
+                    
+                    if (peopleAheadEl) {
+                        peopleAheadEl.textContent = peopleAhead;
+                    }
+                    
+                    if (estimatedWaitEl) {
+                        if (peopleAhead === 0) {
+                            estimatedWaitEl.textContent = "Next up!";
+                        } else {
+                            const waitMinutes = peopleAhead * 5;
+                            estimatedWaitEl.textContent = `${waitMinutes} minutes`;
+                        }
+                    }
+                    
+                    const progress = ((physicalQueue.length - userPosition) / physicalQueue.length) * 100;
+                    if (progressBar) progressBar.style.width = Math.max(5, progress) + '%';
+                    if (progressPercent) progressPercent.textContent = Math.round(Math.max(5, progress));
+                }
+            }
+        }
+
+        function startQueueUpdates() {
+            queueInterval = setInterval(() => {
+                if (physicalQueue.length > 0) {
+                    currentServing = physicalQueue[0];
+                    physicalQueue.shift();
+                }
+                
+                const currentServingEl = document.getElementById('currentServing');
+                if (currentServingEl) currentServingEl.textContent = currentServing;
+                
+                updateQueueDisplay();
+                
+                if (currentStatus === 'physical' && currentServing === userTicketNumber) {
+                    setTimeout(() => showScreen(4), 1000);
+                }
+                
+                if (Math.random() < 0.3 && physicalQueue.length < 6) {
+                    let newPerson = Math.max(currentServing + 1, userTicketNumber + 1 + Math.floor(Math.random() * 3));
+                    if (newPerson > userTicketNumber && newPerson !== userTicketNumber) {
+                        physicalQueue.push(newPerson);
+                        physicalQueue.sort((a, b) => a - b);
+                    }
+                }
+                
+            }, 4000);
+        }
+
+        function showSwitchMessage() {
+            const message = document.getElementById('switchMessage');
+            if (message) {
+                if (currentStatus === 'virtual') {
+                    message.innerHTML = '📱 Switched to Virtual! You\'re holding your place but won\'t be called until you return.';
+                } else {
+                    message.innerHTML = '🏥 Switched to Physical! You\'ve joined the active queue and will be called in order.';
+                }
+                message.classList.add('show');
+                
+                setTimeout(() => {
+                    message.classList.remove('show');
+                }, 5000);
+            }
+        }
+
+        function showImmediateQueueMessage() {
+            const message = document.getElementById('immediateQueueMessage');
+            if (message) {
+                message.classList.add('show');
+                setTimeout(() => {
+                    message.classList.remove('show');
+                }, 4000);
+            }
+        }
+
+
+
+        function resetDemo() {
+            currentServing = 35;
+            currentStatus = 'virtual';
+            physicalQueue = [36, 37, 38, 40, 41, 43];
+            totalInQueue = 15;
+            userTicketNumber = 45;
+            
+            clearInterval(queueInterval);
+            
+            showScreen(1);
+        }
+
+
+    </script>
+</body>
+</html>
